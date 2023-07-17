@@ -36,6 +36,41 @@ class DecisionTree:
         p_i, _ = data.value_counts().apply(lambda x: x/len(data)).tolist()
         return p_i * (1 - p_i) * 2
     
+    def __find_best_split(self):
+        best_split = {}
+        for col in self.independent:
+            information_gain, split = self.__find_best_split_for_column(col)
+            if split is None: continue
+            if not best_split or best_split["information_gain"] < information_gain:
+                best_split = {"split": split, "col": col, "information_gain": information_gain}
+        return best_split.get("split"), best_split.get("col"), best_split.get("informaton_gain")
+
+    def __find_best_split_for_column(self, col):
+        x = self.data[col]
+        unique_values = x.unique()
+        if len(unique_values) == 1: return None, None
+        information_gain = None
+        split = None
+        for val in unique_values:
+            left = x <= val
+            right = x > val
+            left_data = self.data[left]
+            right_data = self.data[right]
+            left_impurity = self.__calculate_impurity_score(left_data[self.target])
+            right_impurity = self.__calculate_impurity_score(right_data[self.target])
+            score = self.__calculate_information_gain(left_count = len(left_data),
+                                                      left_impurity = left_impurity,
+                                                      right_count = len(right_data),
+                                                      right_impurity = right_impurity)
+            if information_gain is None or score > information_gain:
+                information_gain = score
+                split = val
+        return information_gain, split
+
+    def __calculate_information_gain(self, left_count, left_impurity, right_count, right_impurity):
+        return self.impurity_score - ((left_count/len(self.data)) * left_impurity + \
+                                      (right_count/len(self.data)) * right_impurity)
+
     def predict(self, data):
         return np.array([self.__flow_data_thru_tree(row) for row in data.values])
     
