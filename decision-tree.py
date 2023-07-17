@@ -72,9 +72,26 @@ class DecisionTree:
                                       (right_count/len(self.data)) * right_impurity)
 
     def predict(self, data):
-        return np.array([self.__flow_data_thru_tree(row) for row in data.values])
+        return np.array([self.__flow_data_thru_tree(row) for _, row in data.iterrows])
     
+    def __validate_data(self):
+        non_numeric_columns = self.data[self.independent].select_dtypes(include = ['category', 'object', 'bool']).columns.tolist()
+        if(len(set(self.independent).intersection(set(non_numeric_columns))) != 0):
+            raise RunTimeError("Not all columns are numeric")
+        
+        self.data[self.target] = self.data[self.target].astype("category")
+        if(len(self.data[self.target].cat.categories) != 2):
+            raise RunTimeError("Implementation is only for Binary Classification")
+
     def __flow_data_thru_tree(self, row):
-        return self.data[self.target].value_counts() \
-                    .apply(lambda x: x/len(self.data)).tolist()
+        if self.is_leaf_node: return self.probability
+        tree = self.left if row[self.split_feature] <= self.criteria else self.right
+        return tree.__flow_data_thru_tree(row)
+
+    @property
+    def is_leaf_node(self): return self.left is None
+
+    @property
+    def probability(self):
+        return self.data[self.target].value_counts().apply(lambda x: x/len(self.data)).tolist()
     
